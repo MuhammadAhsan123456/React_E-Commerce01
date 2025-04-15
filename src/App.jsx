@@ -1,0 +1,79 @@
+import React, { useEffect, useState } from "react";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import Sidebar from "./components/Sidebar";
+import { db } from "./firebase";
+import { collection, getDocs } from "firebase/firestore";
+
+const App = () => {
+  const [data, setData] = useState([]);
+  const [loader, setLoader] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [toggleSidebar, setToggleSidebar] = useState(false);
+
+  const fetchProducts = async () => {
+    const snapshot = await getDocs(collection(db, "products"));
+    const firebaseData = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    const response = await fetch("https://fakestoreapi.com/products");
+    const apiData = await response.json();
+
+    setData([...firebaseData, ...apiData]);
+    setLoader(false);
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+  };
+
+  const filteredData = data.filter((item) =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="flex">
+      <Sidebar
+        toggleSidebar={toggleSidebar}
+        setToggleSidebar={setToggleSidebar}
+        fetchProducts={fetchProducts}
+      />
+
+      <div className="flex-1">
+        <Header
+          onSearch={handleSearch}
+          onAddProduct={() => setToggleSidebar(true)}
+        />
+
+        <div className="min-h-screen bg-gray-100 p-6">
+          {loader ? (
+            <div className="flex justify-center items-center h-screen">
+              <div className="w-12 h-12 border-4 border-t-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredData.map((item, index) => (
+                <div key={index} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 p-4">
+                  <img className="w-full h-60 object-contain mb-4 bg-gray-100 rounded-lg" src={item.image} alt={item.title} />
+                  <h2 className="font-semibold text-lg mb-2 line-clamp-2">{item.title}</h2>
+                  <p className="text-sm text-gray-600 line-clamp-3">{item.description}</p>
+                  <p className="mt-3 font-bold text-xl text-blue-600">${item.price}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Footer />
+      </div>
+    </div>
+  );
+};
+
+export default App;
